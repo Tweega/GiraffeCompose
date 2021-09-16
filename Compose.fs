@@ -1,49 +1,47 @@
 module Compose
 
 
-type EFDoc = {
-    IsNew: bool
+type HandlerDoc = {
     DocStatus: bool
-    ErrMsg: string
 }
 
-type EFDocResult = EFDoc
-type EFFunc = EFDoc -> EFDocResult
-type EFHandler = EFFunc -> EFDoc -> EFDocResult
+type HandlerDocResult = HandlerDoc
+type HandlerFunc = HandlerDoc -> HandlerDocResult
+type HandlerHandler = HandlerFunc -> HandlerDoc -> HandlerDocResult
 
-let handler1 (efFunc: EFFunc) = 
+let handler1 (next: HandlerFunc) = 
     printfn "Setting next of handler1"
-    fun (efDoc: EFDoc) ->
-        printfn "In handler1: doc status: %b" efDoc.DocStatus
-        efFunc {efDoc with DocStatus = false}
+    fun (handlerDoc: HandlerDoc) ->
+        printfn "In handler1: doc status: %b" handlerDoc.DocStatus
+        next {handlerDoc with DocStatus = false}
 
-let handler2 (efFunc: EFFunc) = 
+let handler2 (next: HandlerFunc) = 
     printfn "Setting next of handler2"
-    fun (efDoc: EFDoc) ->
-        printfn "In handler2: doc status: %b" efDoc.DocStatus
-        efFunc {efDoc with DocStatus = false}
+    fun (handlerDoc: HandlerDoc) ->
+        printfn "In handler2: doc status: %b" handlerDoc.DocStatus
+        next {handlerDoc with DocStatus = false}
 
-let handler3 (efFunc: EFFunc) = 
+let handler3 (next: HandlerFunc) = 
     printfn "Setting next of handler3"
-    fun (efDoc: EFDoc) ->
-        printfn "In handler3: doc status: %b" efDoc.DocStatus
-        efFunc efDoc
+    fun (handlerDoc: HandlerDoc) ->
+        printfn "In handler3: doc status: %b" handlerDoc.DocStatus
+        next handlerDoc
 
-let handler4 (efFunc: EFFunc) = 
+let handler4 (next: HandlerFunc) = 
     printfn "Setting next of handler4"
-    fun (efDoc: EFDoc) ->
-        printfn "In handler4: doc status: %b" efDoc.DocStatus
-        efFunc efDoc
+    fun (handlerDoc: HandlerDoc) ->
+        printfn "In handler4: doc status: %b" handlerDoc.DocStatus
+        next handlerDoc
 
-let finalFunc (efDoc: EFDoc) =
-    printfn "In final func: doc status: %b" efDoc.DocStatus
-    efDoc
+let finalFunc (handlerDoc: HandlerDoc) =
+    printfn "In final func: doc status: %b" handlerDoc.DocStatus
+    handlerDoc
 
-let compose (efh1: EFHandler) (efh2:EFHandler) =
-    fun (final: EFFunc) ->
+let compose (handlerh1: HandlerHandler) (handlerh2:HandlerHandler) =
+    fun (final: HandlerFunc) ->
         printfn "Setting next of combiner"
-        let func = final |> efh2 |> efh1
-        fun (doc: EFDoc) ->
+        let func = final |> handlerh2 |> handlerh1
+        fun (doc: HandlerDoc) ->
             printfn "Doc status is : %b" doc.DocStatus
             if doc.DocStatus then
                 printfn "Calling  func"
@@ -56,15 +54,12 @@ let (>=>) = compose
 
 let test() =
 
-    let jj = handler1 >=> handler2 >=> handler3 >=> handler4
-    let gg = jj finalFunc
+    let composed = handler1 >=> handler2 >=> handler3 >=> handler4
+    let docProcessor = composed finalFunc
 
-    printfn "gg: %A" gg
     let doc = {
-        IsNew = true
         DocStatus = true
-        ErrMsg = ""
     }
 
-    let yy = gg doc
-    printfn "final doc: %A" yy
+    let processedDoc = docProcessor doc
+    printfn "processed doc: %A" processedDoc
